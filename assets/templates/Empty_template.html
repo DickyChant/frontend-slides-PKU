@@ -1116,6 +1116,18 @@
                 };
 
                 let dragInfo = null;
+                let dragRafId = null;
+                const flushDrag = () => {
+                    if (!dragInfo || !this.isEditMode) {
+                        dragRafId = null;
+                        return;
+                    }
+                    const dx = dragInfo.latestX - dragInfo.startX;
+                    const dy = dragInfo.latestY - dragInfo.startY;
+                    dragInfo.target.style.left = `${Math.round(dragInfo.baseLeft + dx)}px`;
+                    dragInfo.target.style.top = `${Math.round(dragInfo.baseTop + dy)}px`;
+                    dragRafId = null;
+                };
                 document.addEventListener('mousedown', (e) => {
                     if (!this.isEditMode || e.button !== 0) return;
                     const target = e.target.closest('[data-live-edit-drag="true"]');
@@ -1133,6 +1145,8 @@
                         target,
                         startX: e.clientX,
                         startY: e.clientY,
+                        latestX: e.clientX,
+                        latestY: e.clientY,
                         baseLeft: Number.isNaN(currentLeft) ? 0 : currentLeft,
                         baseTop: Number.isNaN(currentTop) ? 0 : currentTop
                     };
@@ -1144,15 +1158,20 @@
 
                 document.addEventListener('mousemove', (e) => {
                     if (!dragInfo || !this.isEditMode) return;
-                    const dx = e.clientX - dragInfo.startX;
-                    const dy = e.clientY - dragInfo.startY;
-                    dragInfo.target.style.left = `${Math.round(dragInfo.baseLeft + dx)}px`;
-                    dragInfo.target.style.top = `${Math.round(dragInfo.baseTop + dy)}px`;
+                    dragInfo.latestX = e.clientX;
+                    dragInfo.latestY = e.clientY;
+                    if (!dragRafId) {
+                        dragRafId = requestAnimationFrame(flushDrag);
+                    }
                     e.preventDefault();
                 });
 
                 document.addEventListener('mouseup', () => {
                     if (!dragInfo) return;
+                    if (dragRafId) {
+                        cancelAnimationFrame(dragRafId);
+                        dragRafId = null;
+                    }
                     dragInfo.target.style.zIndex = '';
                     dragInfo.target.style.userSelect = '';
                     dragInfo = null;
